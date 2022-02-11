@@ -37,6 +37,9 @@
               = render "aspects/aspect_listings", stream: @stream
             %li.nested-list
               = render "tags/followed_tags_listings"
+            - if AppConfig.local_posts_stream?(current_user)
+              %li{data: {stream: "local_public"}}
+                = link_to t("streams.local_public.title"), local_public_stream_path, rel: "backbone", class: "hoverable"
             %li{data: {stream: "public"}}
               = link_to t("streams.public.title"), public_stream_path, rel: "backbone", class: "hoverable"
 
@@ -119,7 +122,7 @@
                     - if service_unconnected?(service)
                       = link_to(content_tag(:div, nil,
                         class: "social-media-logos-#{service.to_s.downcase}-24x24",
-                        title: service.to_s.titleize), "/auth/#{service}")
+                        title: service.to_s.titleize), "/auth/#{service}", method: :post)
 
           .section.collapsed
             .title

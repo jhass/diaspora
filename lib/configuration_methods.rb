@@ -50,6 +50,15 @@ module Configuration
         self["services.#{service}.authorized"] == true
     end
 
+    def local_posts_stream?(user)
+      return true if settings.enable_local_posts_stream == "admins" &&
+                      user.admin?
+      return true if settings.enable_local_posts_stream == "moderators" &&
+                      user.moderator?
+
+      settings.enable_local_posts_stream == "everyone"
+    end
+
     def secret_token
       if heroku?
         return ENV["SECRET_TOKEN"] if ENV["SECRET_TOKEN"]

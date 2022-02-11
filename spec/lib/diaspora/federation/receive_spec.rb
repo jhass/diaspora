@@ -1,8 +1,60 @@
 # frozen_string_literal: true
 
 describe Diaspora::Federation::Receive do
-  let(:sender) { FactoryGirl.create(:person) }
-  let(:post) { FactoryGirl.create(:status_message, text: "hello", public: true, author: alice.person) }
+  let(:sender) { FactoryBot.create(:person) }
+  let(:post) { FactoryBot.create(:status_message, text: "hello", public: true, author: alice.person) }
+
+  describe ".handle_closed_recipient" do
+    let(:closed_recipient) { FactoryBot.create(:user).tap {|u| u.person.lock_access! } }
+
+    it "does nothing if the recipient isn't closed" do
+      recipient = FactoryBot.create(:user)
+      expect { Diaspora::Federation::Receive.handle_closed_recipient(sender, recipient) }.not_to raise_error
+    end
+
+    it "raises if the recipient is closed, but no AccountMigration and/or AccountDeletion exists" do
+      expect(Diaspora::Federation::Dispatcher).not_to receive(:build)
+      expect { Diaspora::Federation::Receive.handle_closed_recipient(sender, closed_recipient) }
+        .to raise_error(Diaspora::Federation::RecipientClosed)
+    end
+
+    it "resends AccountMigration if the recipient is closed and an AccountMigration exists" do
+      migration = AccountMigration.create(old_person: closed_recipient.person, new_person: FactoryBot.create(:person))
+
+      dispatcher = double
+      expect(Diaspora::Federation::Dispatcher).to receive(:build)
+        .with(closed_recipient, migration, subscribers: [sender]).and_return(dispatcher)
+      expect(dispatcher).to receive(:dispatch)
+
+      expect { Diaspora::Federation::Receive.handle_closed_recipient(sender, closed_recipient) }
+        .to raise_error(Diaspora::Federation::RecipientClosed)
+    end
+
+    it "resends AccountDeletion if the recipient is closed and an AccountDeletion exists" do
+      deletion = AccountDeletion.create(person: closed_recipient.person)
+
+      dispatcher = double
+      expect(Diaspora::Federation::Dispatcher).to receive(:build)
+        .with(closed_recipient, deletion, subscribers: [sender]).and_return(dispatcher)
+      expect(dispatcher).to receive(:dispatch)
+
+      expect { Diaspora::Federation::Receive.handle_closed_recipient(sender, closed_recipient) }
+        .to raise_error(Diaspora::Federation::RecipientClosed)
+    end
+
+    it "resends AccountMigration if the recipient is closed and both an AccountMigration and AccountDeletion exists" do
+      AccountDeletion.create(person: closed_recipient.person)
+      migration = AccountMigration.create(old_person: closed_recipient.person, new_person: FactoryBot.create(:person))
+
+      dispatcher = double
+      expect(Diaspora::Federation::Dispatcher).to receive(:build)
+        .with(closed_recipient, migration, subscribers: [sender]).and_return(dispatcher)
+      expect(dispatcher).to receive(:dispatch)
+
+      expect { Diaspora::Federation::Receive.handle_closed_recipient(sender, closed_recipient) }
+        .to raise_error(Diaspora::Federation::RecipientClosed)
+    end
+  end
 
   describe ".account_deletion" do
     let(:account_deletion_entity) { Fabricate(:account_deletion_entity, author: sender.diaspora_handle) }
@@ -36,16 +88,19 @@ describe Diaspora::Federation::Receive do
   end
 
   describe ".account_migration" do
-    let(:new_person) { FactoryGirl.create(:person) }
+    let(:new_person) { FactoryBot.create(:person) }
     let(:profile_entity) { Fabricate(:profile_entity, author: new_person.diaspora_handle) }
     let(:account_migration_entity) {
-      Fabricate(:account_migration_entity, author: sender.diaspora_handle, profile: profile_entity)
+      Fabricate(:account_migration_entity, author: sender.diaspora_handle, profile: profile_entity, signature: "aa")
     }
 
     it "saves the account deletion" do
-      Diaspora::Federation::Receive.perform(account_migration_entity)
+      received = Diaspora::Federation::Receive.perform(account_migration_entity)
 
-      expect(AccountMigration.exists?(old_person: sender, new_person: new_person)).to be_truthy
+      migration = AccountMigration.find_by(old_person: sender, new_person: new_person)
+
+      expect(received).to eq(migration)
+      expect(migration.signature).to be_nil
     end
 
     it "ignores duplicate the account migrations" do
@@ -67,6 +122,16 @@ describe Diaspora::Federation::Receive do
       expect(Diaspora::Federation::Receive.perform(account_migration_entity)).to be_nil
 
       expect(AccountMigration.exists?(old_person: sender, new_person: new_person)).to be_truthy
+    end
+
+    it "saves signature from the new person if the old person is local" do
+      sender = FactoryBot.create(:user).person
+      account_migration_entity =
+        Fabricate(:account_migration_entity, author: sender.diaspora_handle, profile: profile_entity, signature: "aa")
+
+      received = Diaspora::Federation::Receive.perform(account_migration_entity)
+
+      expect(received.signature).to eq("aa")
     end
   end
 
@@ -288,7 +353,7 @@ describe Diaspora::Federation::Receive do
     it_behaves_like "it relays relayables", Like
 
     context "like for a comment" do
-      let(:comment) { FactoryGirl.create(:comment, post: post) }
+      let(:comment) { FactoryBot.create(:comment, post: post) }
       let(:like_entity) {
         build_relayable_federation_entity(
           :like,
@@ -331,7 +396,7 @@ describe Diaspora::Federation::Receive do
 
   describe ".message" do
     let(:conversation) {
-      FactoryGirl.build(:conversation, author: alice.person).tap do |conv|
+      FactoryBot.build(:conversation, author: alice.person).tap do |conv|
         conv.participants << sender
         conv.save!
       end
@@ -446,7 +511,7 @@ describe Diaspora::Federation::Receive do
   end
 
   describe ".poll_participation" do
-    let(:post_with_poll) { FactoryGirl.create(:status_message_with_poll, author: alice.person) }
+    let(:post_with_poll) { FactoryBot.create(:status_message_with_poll, author: alice.person) }
     let(:poll_participation_entity) {
       build_relayable_federation_entity(
         :poll_participation,
@@ -550,7 +615,7 @@ describe Diaspora::Federation::Receive do
 
   describe ".retraction" do
     it "destroys the post" do
-      remote_post = FactoryGirl.create(:status_message, author: sender, public: true)
+      remote_post = FactoryBot.create(:status_message, author: sender, public: true)
 
       retraction = Fabricate(
         :retraction_entity,
@@ -594,8 +659,8 @@ describe Diaspora::Federation::Receive do
 
     context "Relayable" do
       it "relays the retraction and destroys the relayable when the parent-author is local" do
-        local_post = FactoryGirl.create(:status_message, author: alice.person, public: true)
-        remote_comment = FactoryGirl.create(:comment, author: sender, post: local_post)
+        local_post = FactoryBot.create(:status_message, author: alice.person, public: true)
+        remote_comment = FactoryBot.create(:comment, author: sender, post: local_post)
 
         retraction = Fabricate(
           :retraction_entity,
@@ -617,8 +682,8 @@ describe Diaspora::Federation::Receive do
       end
 
       it "destroys the relayable when the parent-author is not local" do
-        remote_post = FactoryGirl.create(:status_message, author: sender, public: true)
-        remote_comment = FactoryGirl.create(:comment, author: sender, post: remote_post)
+        remote_post = FactoryBot.create(:status_message, author: sender, public: true)
+        remote_comment = FactoryBot.create(:comment, author: sender, post: remote_post)
 
         retraction = Fabricate(
           :retraction_entity,

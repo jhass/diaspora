@@ -5,6 +5,8 @@ module Api
     class ConversationsController < Api::V1::BaseController
       include ConversationsHelper
 
+      BOOLEAN_TYPE = ActiveModel::Type::Boolean.new
+
       before_action do
         require_access_token %w[conversations]
       end
@@ -17,7 +19,7 @@ module Api
         mapped_params = {}
         mapped_params[:only_after] = params[:only_after] if params.has_key?(:only_after)
 
-        mapped_params[:unread] = params[:only_unread] if params.has_key?(:only_unread)
+        mapped_params[:unread] = BOOLEAN_TYPE.cast(params[:only_unread]) if params.has_key?(:only_unread)
 
         conversations_query = conversation_service.all_for_user(mapped_params)
         conversations_page = pager(conversations_query, "conversations.created_at").response
@@ -40,7 +42,17 @@ module Api
         Diaspora::Federation::Dispatcher.defer_dispatch(current_user, conversation)
         render json: conversation_as_json(conversation), status: :created
       rescue ActiveRecord::RecordInvalid, ActionController::ParameterMissing, ActiveRecord::RecordNotFound
-        render_error 422, "Couldn’t accept or process the conversation"
+        render_error 422, "Couldn't accept or process the conversation"
+      end
+
+      def update
+        read = BOOLEAN_TYPE.cast(params.require(:read))
+        conversation = conversation_service.find!(params[:id])
+        conversation.update_read_for(current_user, read: read)
+
+        render json: conversation_as_json(conversation)
+      rescue ActiveRecord::RecordInvalid, ActionController::ParameterMissing, ActiveRecord::RecordNotFound
+        render_error 422, "Couldn't update the conversation"
       end
 
       def destroy

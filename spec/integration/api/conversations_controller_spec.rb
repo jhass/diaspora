@@ -4,19 +4,19 @@ require_relative "api_spec_helper"
 
 describe Api::V1::ConversationsController do
   let(:auth) {
-    FactoryGirl.create(
+    FactoryBot.create(
       :auth_with_default_scopes,
       scopes: %w[openid conversations],
-      user:   FactoryGirl.create(:user, profile: FactoryGirl.create(:profile_with_image_url))
+      user:   FactoryBot.create(:user, profile: FactoryBot.create(:profile_with_image_url))
     )
   }
 
   let(:auth_participant) {
-    FactoryGirl.create(:auth_with_all_scopes)
+    FactoryBot.create(:auth_with_all_scopes)
   }
 
   let(:auth_minimum_scopes) {
-    FactoryGirl.create(:auth_with_default_scopes)
+    FactoryBot.create(:auth_with_default_scopes)
   }
 
   let!(:access_token) { auth.create_access_token.to_s }
@@ -25,7 +25,7 @@ describe Api::V1::ConversationsController do
   let(:invalid_token) { SecureRandom.hex(9) }
 
   before do
-    alice.person.profile = FactoryGirl.create(:profile_with_image_url)
+    alice.person.profile = FactoryBot.create(:profile_with_image_url)
 
     auth.user.aspects.create(name: "first")
     auth.user.share_with(alice.person, auth.user.aspects[0])
@@ -57,7 +57,7 @@ describe Api::V1::ConversationsController do
     context "without valid data" do
       it "fails with empty body" do
         post api_v1_conversations_path, params: {access_token: access_token}
-        confirm_api_error(response, 422, "Couldn’t accept or process the conversation")
+        confirm_api_error(response, 422, "Couldn't accept or process the conversation")
       end
 
       it "fails with missing subject " do
@@ -67,7 +67,7 @@ describe Api::V1::ConversationsController do
           access_token: access_token
         }
         post api_v1_conversations_path, params: incomplete_conversation
-        confirm_api_error(response, 422, "Couldn’t accept or process the conversation")
+        confirm_api_error(response, 422, "Couldn't accept or process the conversation")
       end
 
       it "fails with missing body " do
@@ -77,7 +77,7 @@ describe Api::V1::ConversationsController do
           access_token: access_token
         }
         post api_v1_conversations_path, params: incomplete_conversation
-        confirm_api_error(response, 422, "Couldn’t accept or process the conversation")
+        confirm_api_error(response, 422, "Couldn't accept or process the conversation")
       end
 
       it "fails with missing recipients " do
@@ -87,7 +87,7 @@ describe Api::V1::ConversationsController do
           access_token: access_token
         }
         post api_v1_conversations_path, params: incomplete_conversation
-        confirm_api_error(response, 422, "Couldn’t accept or process the conversation")
+        confirm_api_error(response, 422, "Couldn't accept or process the conversation")
       end
 
       it "fails with bad recipient ID " do
@@ -98,7 +98,7 @@ describe Api::V1::ConversationsController do
           access_token: access_token
         }
         post api_v1_conversations_path, params: incomplete_conversation
-        confirm_api_error(response, 422, "Couldn’t accept or process the conversation")
+        confirm_api_error(response, 422, "Couldn't accept or process the conversation")
       end
 
       it "fails with invalid recipient (not allowed to message) " do
@@ -109,7 +109,7 @@ describe Api::V1::ConversationsController do
           access_token: access_token
         }
         post api_v1_conversations_path, params: incomplete_conversation
-        confirm_api_error(response, 422, "Couldn’t accept or process the conversation")
+        confirm_api_error(response, 422, "Couldn't accept or process the conversation")
       end
     end
 
@@ -173,7 +173,16 @@ describe Api::V1::ConversationsController do
         params: {only_unread: true, access_token: access_token}
       )
       expect(response.status).to eq(200)
-      expect(response_body(response).length).to eq(2)
+      expect(response_body(response).length).to eq(1)
+    end
+
+    it "returns all the user unread conversations with only_unread explicitly false" do
+      get(
+        api_v1_conversations_path,
+        params: {only_unread: false, access_token: access_token}
+      )
+      expect(response.status).to eq(200)
+      expect(response_body(response).length).to eq(3)
     end
 
     it "returns all the user conversations after a given date" do
@@ -222,6 +231,83 @@ describe Api::V1::ConversationsController do
         confirm_conversation_format(conversation, @conversation, [auth.user, alice])
 
         expect(conversation.to_json).to match_json_schema(:api_v1_schema, fragment: "#/definitions/conversation")
+      end
+    end
+
+    context "non existing conversation ID" do
+      it "returns a not found error (404)" do
+        get(
+          api_v1_conversation_path(-1),
+          params: {access_token: access_token}
+        )
+        confirm_api_error(response, 404, "Conversation with provided guid could not be found")
+      end
+    end
+
+    context "with improper credentials" do
+      it "fails without conversation scope" do
+        get(
+          api_v1_conversation_path(@conversation_guid),
+          params: {access_token: access_token_minimum_scopes}
+        )
+        expect(response.status).to eq(403)
+      end
+
+      it "fails without valid token" do
+        conversation_guid = response_body(response)["guid"]
+        get(
+          api_v1_conversation_path(conversation_guid),
+          params: {access_token: invalid_token}
+        )
+        expect(response.status).to eq(401)
+      end
+    end
+  end
+
+  describe "#update" do
+    before do
+      post api_v1_conversations_path, params: @conversation_request
+      @conversation_guid = response_body(response)["guid"]
+      @conversation = conversation_service.find!(@conversation_guid)
+    end
+
+    context "valid conversation ID" do
+      it "marks as read and returns the corresponding conversation" do
+        @conversation.conversation_visibilities.where(person: auth.user.person).update(unread: true)
+
+        patch(
+          api_v1_conversation_path(@conversation_guid),
+          params: {read: true, access_token: access_token}
+        )
+        expect(response.status).to eq(200)
+        conversation = response_body(response)
+        confirm_conversation_format(conversation, @conversation, [auth.user, alice])
+
+        expect(conversation.to_json).to match_json_schema(:api_v1_schema, fragment: "#/definitions/conversation")
+      end
+
+      it "marks as unread and returns the corresponding conversation" do
+        @conversation.conversation_visibilities.where(person: auth.user.person).update(unread: false)
+
+        patch(
+          api_v1_conversation_path(@conversation_guid),
+          params: {read: false, access_token: access_token}
+        )
+        expect(response.status).to eq(200)
+        conversation = response_body(response)
+        confirm_conversation_format(conversation, @conversation, [auth.user, alice], read: false)
+
+        expect(conversation.to_json).to match_json_schema(:api_v1_schema, fragment: "#/definitions/conversation")
+      end
+    end
+
+    context "with missing parameters" do
+      it "for read" do
+        patch(
+          api_v1_conversation_path(@conversation_guid),
+          params: {access_token: access_token}
+        )
+        confirm_api_error(response, 422, "Couldn't update the conversation")
       end
     end
 
@@ -357,12 +443,12 @@ describe Api::V1::ConversationsController do
   end
 
   # rubocop:disable Metrics/AbcSize
-  def confirm_conversation_format(conversation, ref_conversation, ref_participants)
+  def confirm_conversation_format(conversation, ref_conversation, ref_participants, read: true)
     expect(conversation["guid"]).to_not be_nil
     conversation_service.find!(conversation["guid"])
     expect(conversation["subject"]).to eq ref_conversation[:subject]
     expect(conversation["created_at"]).to_not be_nil
-    expect(conversation["read"]).to be_truthy
+    expect(conversation["read"]).to read ? be_truthy : be_falsy
     expect(conversation["participants"].length).to eq(ref_participants.length)
     participants = conversation["participants"]
 

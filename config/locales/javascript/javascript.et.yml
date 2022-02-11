@@ -14,8 +14,8 @@ et:
       deselect_all: "Eemalda kõik valikust"
       select_all: "Vali kõik"
     comments:
-      hide: "peida kommentaarid"
-      show: "näita kõiki kommentaare"
+      hide: "Peida kommentaarid"
+      show: "Näita kõiki kommentaare"
     confirm_dialog: "Kas oled kindel?"
     delete: "Kustuta"
     failed_to_post_message: "Sõnumi saatmine ebaõnnestus!"
@@ -40,10 +40,16 @@ et:
     my_stream: "Voog"
     photo_uploader:
       looking_good: "OMG, sa näed vinge välja!"
-    show_more: "näita veel"
+    show_more: "Näita veel"
     stream:
       comment: "Kommenteeri"
+      disable_post_notifications: "Lülita selle postituse teavitused välja"
+      enable_post_notifications: "Lülita selle postituse teavitused sisse"
       follow: "Jälgi"
+      followed_tag:
+        add_a_tag: "Lisa silt"
+        follow: "Jälgi"
+        title: "#Jälgitavad sildid"
       hide: "Peida"
       hide_nsfw_posts: "Peida #nsfw postitused"
       like: "Meeldib"
@@ -56,7 +62,9 @@ et:
         one: "Näita veel <%= count %> kommentaari"
         other: "Näita veel <%= count %> kommentaari"
         zero: "Näita veel <%= count %> kommentaari"
-      original_post_deleted: "Postitus on autori poolt eemaldatud."
+      no_posts_yet: "Ei ole veel kuvamiseks postitusi."
+      original_post_deleted: "Postitus on autori poolt kustutatud."
+      permalink: "Püsiviide"
       public: "Avalik"
       reshare: "Jaga edasi"
       reshares:
@@ -65,6 +73,11 @@ et:
         zero: "<%= count %> edasijagamist"
       show_nsfw_post: "Näita postitust"
       show_nsfw_posts: "Näita kõiki"
+      tags:
+        follow: "Jälgi #<%= tag %>"
+        following: "Jälgin #<%= tag %>"
+        stop_following: "Lõpeta #<%= tag %> jälgimine"
+        stop_following_confirm: "Lõpeta sildi #<%= tag %> jälgimine?"
       unfollow: "Lõpeta jälgimine"
       unlike: "Ei meeldi"
     tags:

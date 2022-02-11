@@ -1,13 +1,13 @@
-FROM ruby:2.4.4-slim-stretch
+FROM ruby:2.6-slim-buster
 
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update && \
-    apt-get install -y -qq \
+    apt-get install -y -qq --no-install-recommends \
         build-essential \
         cmake \
         curl \
-        ghostscript \
         git \
+        gsfonts \
         imagemagick \
         libcurl4-openssl-dev \
         libidn11-dev \
@@ -16,10 +16,13 @@ RUN DEBIAN_FRONTEND=noninteractive \
         libpq-dev \
         libssl-dev \
         libxml2-dev \
-        libxslt-dev \
+        libxslt1-dev \
         nodejs \
         gosu \
     && \
+    curl https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o ./google-chrome.deb && \
+    apt install -y -qq --no-install-recommends ./google-chrome.deb && \
+    rm ./google-chrome.deb && \
     rm -rf /var/lib/apt/lists/*
 
 
@@ -27,7 +30,8 @@ ARG DIA_UID
 ARG DIA_GID
 
 ENV HOME="/home/diaspora" \
-    GEM_HOME="/diaspora/vendor/bundle"
+    GEM_HOME="/diaspora/vendor/bundle" \
+    OPENSSL_CONF="/etc/ssl/"
 
 RUN addgroup --gid $DIA_GID diaspora && \
     adduser \
@@ -40,13 +44,6 @@ RUN addgroup --gid $DIA_GID diaspora && \
     && \
     mkdir $HOME /diaspora && \
     chown -R diaspora:diaspora $HOME /diaspora
-
-
-RUN curl -L \
-        https://cifiles.diasporafoundation.org/phantomjs-2.1.1-linux-x86_64.tar.bz2 \
-        | tar -xj -C /usr/local/bin \
-            --transform='s#.*/##' \
-            phantomjs-2.1.1-linux-x86_64/bin/phantomjs
 
 
 ENV BUNDLE_PATH="$GEM_HOME" \

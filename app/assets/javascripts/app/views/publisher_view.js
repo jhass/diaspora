@@ -113,6 +113,7 @@ app.views.Publisher = Backbone.View.extend({
 
     this.viewUploader = new app.views.PublisherUploader({
       el: this.$("#file-upload"),
+      dropZoneElementIds: ["publisher-textarea-wrapper"],
       publisher: this
     });
     this.viewUploader.on("change", this.checkSubmitAvailability, this);
@@ -351,7 +352,7 @@ app.views.Publisher = Backbone.View.extend({
     };
 
     var previewPost = new app.views.PreviewPost({model: new app.models.Post(previewMessage)}).render().el;
-    return $("<div/>").append(previewPost).html();
+    return $("<div></div>").append(previewPost).html();
   },
 
   keyDown : function(evt) {
@@ -446,6 +447,7 @@ app.views.Publisher = Backbone.View.extend({
 
   checkSubmitAvailability: function() {
     if (this._submittable()) {
+      this.open();
       this.setButtonsEnabled(true);
     } else {
       this.setButtonsEnabled(false);

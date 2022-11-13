@@ -89,6 +89,8 @@ en:
       correct_the_following_errors_and_try_again: "Correct the following errors and try again."
     need_javascript: "This website requires JavaScript to function properly. If you disabled JavaScript, please enable it and refresh this page."
     csrf_token_fail: "The CSRF token is invalid. Please sign in and try again."
+    mobile_not_available: "This page is not available on mobile view, please switch to %{desktop_link}."
+    desktop_view_link: "desktop view"
 
   admins:
     admin_bar:
@@ -192,8 +194,6 @@ en:
       tag_name: "Tag name: %{name_tag} Count: %{count_tag}"
     pods:
       pod_network: "Pod network"
-      pod_desktop_view: "This page is not available on mobile view, please switch to %{desktop_link}."
-      pod_desktop_link: "desktop view"
   aspects:
     edit:
       confirm_remove_aspect: "Are you sure you want to delete this aspect?"
@@ -741,7 +741,7 @@ en:
     started_sharing:
         subject: "%{name} started sharing with you on diaspora*"
         sharing: "has started sharing with you!"
-        view_profile: "View %{name}’s profile"
+        view_profile: "View %{name}’s profile >"
     comment_on_post:
         limited_subject: "There's a new comment on one of your posts"
         reply: "Reply or view %{name}’s post >"
@@ -766,7 +766,7 @@ en:
     contacts_birthday:
         subject: "%{name} has their birthday today"
         birthday: "%{name} has their birthday today. Wish them 'Happy Birthday'!"
-        view_profile: "View %{name}’s profile"
+        view_profile: "View %{name}’s profile >"
     confirm_email:
         subject: "Please activate your new email address %{unconfirmed_email}"
         click_link: "To activate your new email address %{unconfirmed_email}, please follow this link:"
@@ -831,7 +831,7 @@ en:
         Hello %{name}
 
         We’ve encountered an issue while processing your personal data for download.
-        Please try again!
+        If this issue persists, please contact your podmin for help.
 
         Sorry,
 
@@ -852,7 +852,7 @@ en:
         Hello %{name}
 
         We’ve encountered an issue while processing your photos for download.
-        Please try again!
+        If this issue persists, please contact your podmin for help.
 
         Sorry,
 

@@ -10,7 +10,8 @@ print_usage() {
     setup)
       echo; echo "Set up the environment for diaspora*"
       echo; echo "This command is an alias for the execution of the commands"
-      echo "build, config, bundle, migrate and setup-tests, in that order."
+      echo "build, config, pull, bundle, setup-rails and setup-tests, in that order."
+      echo; echo "This command can also be used to update the environment again."
       print_usage_header "setup [options]" \
         "    --force    Rebuild image without using Docker's cache;" \
         "               overwrite existing configuration" \
@@ -44,6 +45,10 @@ print_usage() {
       print_usage_header "clean [options]" \
         "    --config    Delete configuration files as well"
       ;;
+    docker-compose)
+      echo; echo "Run docker-compose commands with the required environment variables"
+      print_usage_header "docker-compose [options]"
+      ;;
   # test & development
     cucumber)
       echo; echo "Run cucumber tests"
@@ -76,10 +81,17 @@ print_usage() {
       print_usage_header "build [options]" \
         "    --no-cache    Rebuild image without using Docker's cache"
       ;;
+    pull)
+      echo; echo "Pull docker images needed for the development environment"
+      print_usage_header "pull"
+      ;;
     bundle)
       echo; echo "Install gems using bundle into $DIASPORA_ROOT"
-      print_usage_header "bundle [options]" \
-        "-d    Run in background"
+      print_usage_header "bundle"
+      ;;
+    yarn)
+      echo; echo "Install frontend dependencies using yarn into $DIASPORA_ROOT"
+      print_usage_header "yarn"
       ;;
     config)
       echo; echo "Create basic configuration files for usage with PostgreSQL (default)"
@@ -97,6 +109,10 @@ print_usage() {
     help)
       echo; echo "Show help on a command"
       print_usage_header "help COMMAND"
+      ;;
+    setup-rails)
+      echo; echo "Set up development environment (install dependencies, migrate db, ...)"
+      print_usage_header "setup-rails"
       ;;
     setup-tests)
       echo; echo "Prepare cached files and database contents for tests"
@@ -129,28 +145,32 @@ print_usage_full() {
   print_usage_header "$SCRIPT_NAME COMMAND"
   echo
   echo "Management Commands:"
-  echo "  setup         Prepare diaspora* to run for development"
-  echo "  start         Start diaspora*"
-  echo "  stop          Stop diaspora*"
-  echo "  restart       Restart of diaspora*"
-  echo "  logs          Follow log output of diaspora*"
-  echo "  status        Show current instance status of diaspora*"
-  echo "  clean         Reset diaspora* instance"
+  echo "  setup            Prepare diaspora* to run for development"
+  echo "  start            Start diaspora*"
+  echo "  stop             Stop diaspora*"
+  echo "  restart          Restart of diaspora*"
+  echo "  logs             Follow log output of diaspora*"
+  echo "  status           Show current instance status of diaspora*"
+  echo "  clean            Reset diaspora* instance"
+  echo "  docker-compose   Run docker-compose commands"
   echo
   echo "Test and Development Commands:"
-  echo "  cucumber      Run cucumber tests"
-  echo "  jasmine       Run jasmine tests"
-  echo "  rspec         Run rspec tests"
-  echo "  pronto        Run pronto checks"
-  echo "  migrate       Execute pending migrations"
+  echo "  cucumber         Run cucumber tests"
+  echo "  jasmine          Run jasmine tests"
+  echo "  rspec            Run rspec tests"
+  echo "  pronto           Run pronto checks"
+  echo "  migrate          Execute pending migrations"
   echo
   echo "Misc. Commands:"
-  echo "  build         Build basic diaspora* environment"
-  echo "  bundle        (Re-)Install gems for diaspora*"
-  echo "  config        Configure diaspora*"
-  echo "  exec          Execute a command in the run environment (advanced)"
-  echo "  help          Show help for commands"
-  echo "  setup-tests   Prepare diaspora* test environment"
+  echo "  build            Build basic diaspora* environment"
+  echo "  pull             Update docker images"
+  echo "  bundle           (Re-)Install gems for diaspora*"
+  echo "  yarn             (Re-)Install frontend dependencies for diaspora*"
+  echo "  config           Configure diaspora*"
+  echo "  exec             Execute a command in the run environment (advanced)"
+  echo "  help             Show help for commands"
+  echo "  setup-rails      Prepare diaspora* development environment (install dependencies, migrate db)"
+  echo "  setup-tests      Prepare diaspora* test environment"
   echo
   echo "Run '$SCRIPT_NAME help COMMAND' for more information on a command."
 }
@@ -199,6 +219,11 @@ dia_is_db_running() {
   dia_docker_compose ps --services --filter status=running | grep -qx $DIASPORA_DOCKER_DB
 }
 
+dia_is_redis_running() {
+  # Check if redis container is running
+  dia_docker_compose ps --services --filter status=running | grep -qx redis
+}
+
 dia_get_db() {
   # Get currently configured or assumed db type
   grep -q '^  <<: \*mysql' "$DIASPORA_CONFIG_DB" 2>/dev/null && echo mysql || echo postgresql
@@ -209,7 +234,11 @@ dia_get_db() {
 dia_build() {
   if [ $# -gt 0 ] && [ "$1" == "--no-cache" ]; then nocache="--no-cache"; fi
   # Build the diaspora Docker container (diaspora:dev-latest)
-  dia_docker_compose build $nocache diaspora
+  dia_docker_compose build --pull $nocache diaspora
+}
+
+dia_pull() {
+  dia_docker_compose pull redis $(dia_get_db)
 }
 
 dia_bundle() {
@@ -218,10 +247,17 @@ dia_bundle() {
   echo "Installing gems via bundler ..."
   dia_docker_compose run \
     --rm \
-    --no-deps $1 \
+    --no-deps \
     -e DIA_NODB=1 \
     diaspora \
     /bin/sh -c "gem install bundler && script/configure_bundler && bin/bundle install --full-index"
+}
+
+dia_yarn() {
+  # Run yarn in order to install all frontend dependencies into $DIASPORA_ROOT
+  # Do not start database, not required and sometimes not yet configured
+  echo "Installing frontend dependencies via yarn ..."
+  dia_docker_compose run --rm --no-deps -e DIA_NODB=1 diaspora bin/yarn
 }
 
 dia_clean() {
@@ -308,13 +344,14 @@ dia_exec() {
     # Use a running container
     dia_docker_compose exec $detach diaspora /exec-entrypoint.sh "$@"
   else
-    if ! dia_is_db_running; then not_running=1; fi
+    # stop db/redis if it was not running before
+    if ! dia_is_db_running; then stopdb="dia_docker_compose stop $DIASPORA_DOCKER_DB"; fi
+    if ! dia_is_redis_running; then stopredis="dia_docker_compose stop redis"; fi
     # Start a new container
     echo "No running instance found, starting new one for command execution ..."
     dia_docker_compose run --rm $detach --service-ports diaspora "$@"
-    if [ ! -z $not_running ]; then
-      dia_docker_compose stop $DIASPORA_DOCKER_DB
-    fi
+    $stopdb
+    $stopredis
   fi
 }
 
@@ -423,25 +460,39 @@ dia_setup() {
     set -e
     dia_build $build
     dia_config $config
-    dia_bundle $bundle
-    dia_migrate $migrate
-    dia_setup_tests $setup_tests
+    dia_pull
+    dia_bundle
+    dia_setup_rails
+    dia_setup_tests
   )
   # stop db afterwards as it is not needed while dia is not running
   dia_docker_compose stop $DIASPORA_DOCKER_DB
 }
 
+dia_setup_rails() {
+  # Prepare rails, install dependencies, migrate database, ...
+  echo "Setting up environment for tests ..."
+  # stop db/redis if it was not running before
+  if ! dia_is_db_running; then stopdb="dia_docker_compose stop $DIASPORA_DOCKER_DB"; fi
+  if ! dia_is_redis_running; then stopredis="dia_docker_compose stop redis"; fi
+  dia_docker_compose run --rm diaspora bin/setup
+  $stopdb
+  $stopredis
+}
+
 dia_setup_tests() {
   # Prepare all possible tests
-  # stop db if it was not running before
   echo "Setting up environment for tests ..."
+  # stop db/redis if it was not running before
   if ! dia_is_db_running; then stopdb="dia_docker_compose stop $DIASPORA_DOCKER_DB"; fi
+  if ! dia_is_redis_running; then stopredis="dia_docker_compose stop redis"; fi
   dia_docker_compose run \
     --rm \
     -e RAILS_ENV=test \
     diaspora \
     bin/rake db:create db:migrate tests:generate_fixtures assets:generate_error_pages
   $stopdb
+  $stopredis
 }
 
 dia_start() {
@@ -510,7 +561,7 @@ case "$dia_command" in
     dia_build "$@"
     ;;
   bundle)
-    dia_bundle "$1"
+    dia_bundle
     ;;
   clean)
     dia_clean "$@"
@@ -520,6 +571,9 @@ case "$dia_command" in
     ;;
   cucumber)
     dia_cucumber "$@"
+    ;;
+  docker-compose)
+    dia_docker_compose "$@"
     ;;
   exec)
     dia_exec "$@"
@@ -536,6 +590,9 @@ case "$dia_command" in
   pronto)
     dia_pronto
     ;;
+  pull)
+    dia_pull
+    ;;
   restart)
     dia_restart "$@"
     ;;
@@ -544,6 +601,9 @@ case "$dia_command" in
     ;;
   setup)
     dia_setup "$@"
+    ;;
+  setup-rails)
+    dia_setup_rails
     ;;
   setup-tests)
     dia_setup_tests
@@ -556,6 +616,9 @@ case "$dia_command" in
     ;;
   stop)
     dia_stop
+    ;;
+  yarn)
+    dia_yarn
     ;;
   *)
     print_usage

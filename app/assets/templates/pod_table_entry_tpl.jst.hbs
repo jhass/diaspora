@@ -1,5 +1,5 @@
 
-<td class="ssl-status"">
+<td class="ssl-status">
   {{#if ssl}}
     <i title="{{t 'admin.pods.ssl_enabled'}}" class="entypo-check">
   {{else}}
@@ -7,13 +7,14 @@
   {{/if}}
   </i>
 </td>
-<td class="pod-title" title="{{host}}">{{host}}</td>
+<td class="pod-title" title="{{host}}">{{host}}{{#if hasPort}}:{{port}}{{/if}}</td>
 <td class="added">
   <small><time datetime="{{created_at}}" title="{{localTime created_at}}"></time></small>
 </td>
 <td>
   {{#if has_no_errors}}
     <i title="{{status_text}}" class="glyphicon glyphicon-ok"></i>
+    {{software}}
   {{else}}
     {{status_text}}
   {{/if}}

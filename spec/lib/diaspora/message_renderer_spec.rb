@@ -78,12 +78,6 @@ describe Diaspora::MessageRenderer do
       end
 
       context 'linking all mentions' do
-        it 'makes plain links for people not in the post aspects' do
-          message = message("@{Bob; #{bob.person.diaspora_handle}}", link_all_mentions: true).html
-          expect(message).to_not include 'hovercard'
-          expect(message).to include '/u/bob'
-        end
-
         it "makes no hovercards if they're disabled" do
           message = message(
             "@{Bob; #{bob.person.diaspora_handle}}",
@@ -91,7 +85,7 @@ describe Diaspora::MessageRenderer do
             disable_hovercards: true
           ).html
           expect(message).to_not include 'hovercard'
-          expect(message).to include '/u/bob'
+          expect(message).to include AppConfig.url_to("/people/#{bob.person.guid}")
         end
       end
     end
@@ -187,6 +181,16 @@ describe Diaspora::MessageRenderer do
             mentioned_people: [new_person]
           ).markdownified
         ).to match(/hovercard/)
+      end
+
+      it "does not parse mentions as markdown" do
+        new_person = FactoryBot.create(:person, diaspora_handle: "__underscore__@example.org")
+        expect(
+          message(
+            "Hey @{#{new_person.diaspora_handle}}!",
+            mentioned_people: [new_person]
+          ).markdownified
+        ).to match(%r{>#{new_person.name}</a>})
       end
 
       it 'should process text with both a hashtag and a link' do

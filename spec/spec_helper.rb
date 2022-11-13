@@ -108,10 +108,6 @@ RSpec.configure do |config|
       :get,
       "https://example.com/.well-known/webfinger?resource=acct:bob@example.com"
     )
-    stub_request(
-      :get,
-      "https://example.com/.well-known/host-meta"
-    )
     $process_queue = false
   end
 
@@ -139,10 +135,6 @@ RSpec.configure do |config|
   end
 
   config.include FactoryBot::Syntax::Methods
-
-  config.include JSON::SchemaMatchers
-  config.json_schemas[:archive_schema] = ArchiveValidator::SchemaValidator::JSON_SCHEMA
-  config.json_schemas[:api_v1_schema] = "lib/schemas/api_v1.json"
 
   JSON::Validator.add_schema(
     JSON::Schema.new(

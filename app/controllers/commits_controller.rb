@@ -1,5 +1,10 @@
 class CommitsController < ApplicationController
-  def receive   
+  TOKEN = Rails.root.join(".github-hook-token").read.chomp
+
+  skip_forgery_protection
+  before_action :validate_token
+
+  def receive
     payload = JSON.parse(params[:payload])
 
     post_message build_message(payload) unless payload['commits'].empty?
@@ -11,23 +16,29 @@ class CommitsController < ApplicationController
 
   private
 
+  def validate_token
+    unless ActiveSupport::SecurityUtils.secure_compare params[:token], TOKEN
+      redirect_to root_path
+    end
+  end
+
   def build_message payload
     branch = payload['ref'].gsub "refs/heads/", ""
     repository = payload['repository']['name']
     repository_url = payload['repository']['url']
     message_lines = []
     message_lines << "New push to **#{branch}** at [#{repository.capitalize}](#{repository_url})" << ""
-    
+
     payload['commits'].reverse.each do |commit|
       first_line, *commit_lines = commit['message'].strip.split("\n")
-      
+
       message_lines << "* [Commit](#{commit['url']}): #{first_line} by *#{commit['author']['name']}*"
       message_lines.concat commit_lines.map {|line| "  #{line}" }
     end
-      
+
     message_lines << ""
-    message_lines << "##{repository}_push ##{repository}_#{branch.gsub("/", "_")}_push"    
-    
+    message_lines << "##{repository}_push ##{repository}_#{branch.gsub("/", "_")}_push"
+
     convert_issue_links message_lines.join("\n")
   end
 

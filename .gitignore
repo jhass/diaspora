@@ -13,6 +13,7 @@ vendor/cache/
 config/database.yml
 config/oidc_key.pem
 config/schedule.yml
+.github-hook-token
 
 # Generated files
 log/

@@ -6,9 +6,9 @@
 
 def with_carrierwave_processing(&block)
   UnprocessedImage.enable_processing = true
-  val = yield
+  yield
+ensure
   UnprocessedImage.enable_processing = false
-  val
 end
 
 describe Photo, :type => :model do
@@ -147,13 +147,7 @@ describe Photo, :type => :model do
       FileUtils.rm_r Dir.glob(File.join(public_path, "uploads/images/*"))
     end
 
-    it "should preserve EXIF data in according to user preference" do
-      image = image_from a_photo_sent_by(alice)
-
-      expect(image.exif.length).not_to eq(0)
-    end
-
-    it "should not preserve EXIF in according to user preference" do
+    it "should strip EXIF data" do
       image = image_from a_photo_sent_by(bob)
 
       expect(image.exif.length).to eq(0)
@@ -271,6 +265,23 @@ describe Photo, :type => :model do
         expect(Photo).to receive(:where).with(author_id: @user.person.id, public: true).and_call_original
         Photo.visible(nil, @user.person)
       end
+    end
+  end
+
+  context "with a maliciously crafted image" do
+    let(:base_path) { File.dirname(__FILE__) }
+    let(:public_path) { File.join(base_path, "../../public/") }
+    let(:evil_image) { File.open(File.join(base_path, "..", "fixtures", "evil-image.ps.png")) }
+
+    it "fails to process a PostScript file camouflaged as a PNG" do
+      photo = bob.build_post(:photo, user_file: evil_image, to: @aspect.id)
+
+      expect {
+        with_carrierwave_processing do
+          photo.unprocessed_image.store! evil_image
+          photo.save
+        end
+      }.to raise_error(CarrierWave::ProcessingError)
     end
   end
 end

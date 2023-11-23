@@ -11,6 +11,8 @@ module NavigationHelpers
       force_mobile_path
     when /^the user applications page$/
       api_openid_connect_user_applications_path
+    when /^the report page$/
+      report_index_path
     when /^the tag page for "([^\"]*)"$/
       tag_path(Regexp.last_match(1))
     when /^its ([\w ]+) page$/
@@ -70,12 +72,10 @@ module NavigationHelpers
   end
 
   def confirm_on_page(page_name)
-    page.driver.send(:retry_if_wrong_world) do
-      if page_name == "my profile page"
-        expect(page).to have_path_in([person_path(@me.person), user_profile_path(@me.username)])
-      else
-        expect(page).to have_path(path_to(page_name))
-      end
+    if page_name == "my profile page"
+      expect(page).to have_path_in([person_path(@me.person), user_profile_path(@me.username)])
+    else
+      expect(page).to have_path(path_to(page_name))
     end
   end
 end

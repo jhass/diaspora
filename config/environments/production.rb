@@ -67,7 +67,7 @@ Rails.application.configure do
   # config.log_tags = [ :request_id ]
 
   # Set the logging destination(s)
-  config.log_to = %w[file]
+  config.log_to = %w[stdout]
 
   # Show the logging configuration on STDOUT
   config.show_log_configuration = false

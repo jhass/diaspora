@@ -1,5 +1,5 @@
 class CommitsController < ApplicationController
-  TOKEN = Rails.root.join(".github-hook-token").read.chomp
+  TOKEN = AppConfig.github_hook_token
 
   skip_forgery_protection
   before_action :validate_token

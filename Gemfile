@@ -267,3 +267,11 @@ group :development, :test do
   # For `assigns` in controller specs
   gem "rails-controller-testing", "1.0.5"
 end
+
+gem "benchmark", "~> 0.4.0"
+gem "mutex_m", "~> 0.3.0"
+gem "logger", "~> 1.6"
+gem "ostruct", "~> 0.6.1"
+gem "syslog", "~> 0.2.0"
+gem "reline", "~> 0.6.0"
+gem "irb", "~> 1.14"

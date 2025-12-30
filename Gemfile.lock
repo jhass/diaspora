@@ -713,7 +713,7 @@ GEM
       sprockets (>= 3.0.0)
     ssrf_filter (1.1.2)
     string-direction (1.2.2)
-    stringio (3.1.2)
+    stringio (3.2.0)
     strscan (3.1.0)
     swd (2.0.3)
       activesupport (>= 3)

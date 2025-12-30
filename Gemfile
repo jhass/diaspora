@@ -67,7 +67,7 @@ gem "rack-cors", "2.0.2", require: "rack/cors"
 gem "autoprefixer-rails",     "10.4.16.0"
 gem "bootstrap-sass",         "3.4.1"
 gem "bootstrap-switch-rails", "3.3.3" # 3.3.4 and 3.3.5 is broken, see https://github.com/Bttstrp/bootstrap-switch/issues/691
-gem "sassc-rails",            "2.1.2"
+gem "dartsass-sprockets"
 gem "sprockets-rails",        "3.4.2"
 
 # Database
@@ -152,7 +152,7 @@ gem "acts-as-taggable-on", "10.0.0"
 gem "addressable",              "2.8.6", require: "addressable/uri"
 gem "faraday",                  "2.9.0"
 gem "faraday-cookie_jar",       "0.0.7"
-gem "faraday-follow_redirects", "0.3.0"
+gem "faraday-follow_redirects", "0.5.0"
 gem "faraday-typhoeus",         "1.1.0", require: false
 gem "typhoeus",                 "1.4.1"
 
@@ -178,7 +178,7 @@ gem "rubyzip", "2.3.2", require: "zip"
 # https://github.com/gitlabhq/gitlabhq/issues/3826
 # https://github.com/gitlabhq/gitlabhq/pull/3852
 # https://github.com/discourse/discourse/pull/238
-gem "minitest", "5.23.1"
+gem "minitest", "5.27.0"
 
 gem "versionist", "2.0.1"
 
@@ -276,3 +276,5 @@ gem "ostruct", "~> 0.6.1"
 gem "syslog", "~> 0.2.0"
 gem "reline", "~> 0.6.0"
 gem "irb", "~> 1.14"
+
+gem "readline", "~> 0.0.4"

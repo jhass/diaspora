@@ -175,7 +175,6 @@ gem "multi_json", "1.15.0"
 # Logging
 
 gem "logging-rails", "0.6.0", require: "logging/rails"
-gem "sentry-raven"
 gem "syslog",        "0.4.0"
 
 # Reading and writing zip files

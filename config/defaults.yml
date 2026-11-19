@@ -37,7 +37,6 @@ defaults:
       debug:
         sql: false
         federation: false
-    sentry_dsn:
   server:
     listen: "tcp://127.0.0.1:3000"
     rails_environment: 'development'

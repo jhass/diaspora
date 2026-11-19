@@ -26,7 +26,6 @@ class ApplicationController < ActionController::Base
   before_action :gon_set_appconfig
   before_action :gon_set_preloads
   before_action :configure_permitted_parameters, if: :devise_controller?
-  before_action :set_sentry_context
 
   helper_method :all_aspects,
                 :all_contacts_count,
@@ -156,11 +155,6 @@ class ApplicationController < ActionController::Base
   def gon_set_preloads
     return unless gon.preloads.nil?
     gon.preloads = {}
-  end
-
-  def set_sentry_context
-    Raven.user_context(username: current_user.username) if user_signed_in?
-    Raven.extra_context(params: params.to_unsafe_h, url: request.url)
   end
 
   protected
